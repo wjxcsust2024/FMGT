@@ -36,6 +36,28 @@ class ChannelAttention(nn.Module):
         out = (x * y1)
         return out
 
+class GatedAttentionUnit(nn.Module):
+    def __init__(self, in_c, out_c, kernel_size):
+        super().__init__()
+        self.w1 = nn.Sequential(
+            DepthWiseConv3d(dim_in=in_c, kernel_size=kernel_size, padding=kernel_size // 2),
+            nn.Sigmoid()
+        )
+
+        self.w2 = nn.Sequential(
+            DepthWiseConv3d(in_c, kernel_size=kernel_size + 2, padding=(kernel_size + 2) // 2),
+            nn.GELU()
+        )
+        self.wo = nn.Sequential(
+            DepthWiseConv3d(in_c, kernel_size=kernel_size, padding=kernel_size // 2),
+            nn.GELU()
+        )
+        self.cw = nn.Conv2d(in_c, out_c, 1)
+
+    def forward(self, x):
+        x1, x2 = self.w1(x), self.w2(x)
+        out = self.wo(x1 * x2) + self.cw(x)
+        return out
 
 class MultiScaleDWConv(nn.Module):
     def __init__(self, dim, scale=(3, 5, 7)):
